@@ -1,141 +1,189 @@
-# streamlit_iris_app.py (restored version)
 import streamlit as st
 import pandas as pd
 from sklearn import datasets
 import plotly.express as px
 
-st.set_page_config(page_title="Iris Data Exploration", layout="wide", initial_sidebar_state="expanded")
+# Page Config
+st.set_page_config(
+    page_title="Iris Data Exploration",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Load data
 iris = datasets.load_iris()
 df = pd.DataFrame(iris.data, columns=iris.feature_names)
 df['species'] = pd.Categorical.from_codes(iris.target, iris.target_names)
-
-# tidy column names
 df.columns = [c.replace(' (cm)', '').replace(' ', '_') for c in df.columns]
+
+# Feature Mapping
+feature_name_map = {
+    "sepal_length": "Sepal Length (cm)",
+    "sepal_width": "Sepal Width (cm)",
+    "petal_length": "Petal Length (cm)",
+    "petal_width": "Petal Width (cm)"
+}
+
+readable_features = list(feature_name_map.values())
+readable_to_original = {v: k for k, v in feature_name_map.items()}
+
+# Theme
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(180deg, #f5f0fa 0%, #ffffff 60%);
+        color: #4b1f70;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #f3e6fa;
+        border-right: 1px solid #e0c7f0;
+    }
+    h1, h2, h3 {
+        color: #4b1f70;
+    }
+    .plot-card {
+        background-color: rgba(255,255,255,0.85);
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(75,31,112,0.1);
+        margin-bottom: 12px;
+    }
+    header[data-testid="stHeader"] {
+        background-color: transparent;
+        height: 0;
+    }
+    
+    /* Sidebar Header Purple */
+    section[data-testid="stSidebar"] h2 {
+        color: #4b1f70 !important;
+    }
+    
+        /* Selected tag colour in multiselect → purple */
+    span[data-baseweb="tag"] {
+        background-color: #d9b3ff !important;
+        color: #4b1f70 !important;
+        border: none !important;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Sidebar
 st.sidebar.header("Data Selection")
 
-# Species select (multi-select)
 species_options = list(df['species'].cat.categories)
-selected_species = st.sidebar.multiselect("Select species", options=species_options, default=species_options)
+selected_species = st.sidebar.multiselect(
+    "Select Species", options=species_options, default=species_options
+)
 
-# Sepal length slider
-min_sepal = float(df.sepal_length.min())
-max_sepal = float(df.sepal_length.max())
-sepal_range = st.sidebar.slider("Sepal length range (cm)", min_value=min_sepal, max_value=max_sepal, value=(min_sepal, max_sepal))
+x_feature_readable = st.sidebar.selectbox("X-Axis Feature", options=readable_features, index=0)
+y_feature_readable = st.sidebar.selectbox("Y-Axis Feature", options=readable_features, index=2)
 
-# Toggle to show raw table
-show_raw = st.sidebar.checkbox("Show raw data table", value=False)
+x_feature = readable_to_original[x_feature_readable]
+y_feature = readable_to_original[y_feature_readable]
 
-#Apply filters
-filtered = df[
-    (df['species'].isin(selected_species)) &
-    (df.sepal_length >= sepal_range[0]) &
-    (df.sepal_length <= sepal_range[1])
-]
+show_raw = st.sidebar.checkbox("Show raw data", value=False)
 
-# Theme
-color_map = {"setosa": "#003f5c", "versicolor": "#d45087", "virginica": "#2f4b7c"}
+filtered = df[df['species'].isin(selected_species)]
 
-# Layout
-st.title("Iris Data Visualisation Dashboard")
-st.markdown("Let's dive into the Iris dataset with interactive filtering, clean visuals, and insightful summary statistics.")
+# Page Header
+st.title("Iris Dataset Exploration Dashboard")
+st.write("Interactively explore the Iris dataset with multiple visualisations and summary statistics.")
 
-# Top metrics row
-col1, col2, col3 = st.columns(3)
-col1.metric("Filtered Rows", len(filtered))
-col2.metric("Average Sepal Length (cm)", f"{filtered.sepal_length.mean():.2f}")
-col3.metric("Average Petal Length (cm)", f"{filtered.petal_length.mean():.2f}")
+m1, m2, m3 = st.columns(3)
+m1.metric("Filtered Rows", len(filtered))
+m2.metric("Average Sepal Length", f"{filtered.sepal_length.mean():.2f}")
+m3.metric("Average Petal Length", f"{filtered.petal_length.mean():.2f}")
 
 st.markdown("---")
 
-# Visualisations
-vis_expander = st.expander("Visualisations", expanded=True)
-with vis_expander:
-    st.subheader("Scatter Plot: Sepal vs Petal")
-    with st.expander("About this scatter plot"):
-        st.write("This visual compares sepal length and petal length across different Iris species.")
+# Scattered Plot
+with st.expander("Scatter Plot", expanded=True):
+    st.write("Scatter plot of selected features to observe relationships between sepal and petal measurements.")
     fig_scatter = px.scatter(
         filtered,
-        x='sepal_length',
-        y='petal_length',
-        color='species',
-        color_discrete_map=color_map,
-        labels={"sepal_length": "Sepal Length (cm)", "petal_length": "Petal Length (cm)"},
-        title='Sepal Length vs Petal Length'
+        x=x_feature,
+        y=y_feature,
+        color="species",
+        labels={**feature_name_map, "species": "Species"},
+        color_discrete_map={"setosa": "#d896ff", "versicolor": "#be29ec", "virginica": "#800080"},
+        title=f"{feature_name_map[x_feature]} vs {feature_name_map[y_feature]}"
     )
     fig_scatter.update_layout(
-        legend_title_text='Species',
-        template='plotly_white',
-        paper_bgcolor='rgba(255,255,255,0.2)',
-        plot_bgcolor='rgba(255,255,255,0.2)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
     )
-    st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_chart")
+    st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_iris")
 
-    st.subheader("Histogram: Sepal Length Distribution")
-    with st.expander("About this histogram"):
-        st.write("This histogram shows how sepal length values are distributed within the filtered dataset.")
+# Histogram
+with st.expander("Histogram", expanded=False):
+    st.write("Histogram showing the distribution of the selected X-axis feature by species.")
     fig_hist = px.histogram(
         filtered,
-        x='sepal_length',
-        nbins=20,
-        color='species',
-        barmode='overlay',
-        color_discrete_map=color_map,
-        labels={'sepal_length': 'Sepal Length (cm)'},
-        title='Distribution of Sepal Length by Species'
+        x=x_feature,
+        color="species",
+        barmode="overlay",
+        labels={**feature_name_map, "species": "Species"},
+        color_discrete_map={"setosa": "#d896ff", "versicolor": "#be29ec", "virginica": "#800080"},
+        title=f"Distribution of {feature_name_map[x_feature]} by Species"
     )
-    fig_hist.update_traces(opacity=0.6)
+    fig_hist.update_traces(opacity=1)
     fig_hist.update_layout(
-        template='plotly_white',
-        paper_bgcolor='rgba(255,255,255,0.2)',
-        plot_bgcolor='rgba(255,255,255,0.2)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
     )
-    st.plotly_chart(fig_hist, use_container_width=True, key="hist_chart")
+    st.plotly_chart(fig_hist, use_container_width=True, key="hist_iris")
 
-data_expander = st.expander("Data Summary", expanded=False)
-with data_expander:
-    st.subheader("Summary of Data")
-    st.write(filtered.describe())
+# Box Plot
+with st.expander("Box Plot", expanded=False):
+    st.write("Box plot for selected X-axis feature across species to visualise spread, quartiles, and outliers.")
+    fig_box = px.box(
+        filtered,
+        x="species",
+        y=x_feature,
+        color="species",
+        labels={**feature_name_map, "species": "Species"},
+        color_discrete_map={"setosa": "#d896ff", "versicolor": "#be29ec", "virginica": "#800080"},
+        title=f"{feature_name_map[x_feature]} by Species (Box Plot)"
+    )
+    fig_box.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig_box, use_container_width=True, key="box_iris")
 
-    st.write("**Species Counts**")
-    st.table(filtered['species'].value_counts().rename_axis('species').reset_index(name='count'))
+# Pairwise Scatter Matrix
+with st.expander("Pairwise Scatter Matrix", expanded=False):
+    st.write("Pairwise scatter plots for all features to quickly observe inter-feature relationships.")
+    pair_df = filtered.copy()
+    pair_df = pair_df.rename(columns=feature_name_map)
+    fig_pair = px.scatter_matrix(
+        pair_df,
+        dimensions=list(feature_name_map.values()),
+        color="species",
+        color_discrete_map={"setosa": "#d896ff", "versicolor": "#be29ec", "virginica": "#800080"},
+        title="Pairwise Feature Relationships"
+    )
+    fig_pair.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig_pair, use_container_width=True, key="pair_iris")
+
+# Data Summary
+with st.expander("Data Summary", expanded=False):
+    st.subheader("Descriptive Statistics")
+    st.dataframe(filtered.describe().round(2))
+    st.markdown("### Counts by Species")
+    st.table(filtered['species'].value_counts().rename_axis("Species").reset_index(name="Count"))
 
     if show_raw:
-        st.subheader("Filtered Raw Data")
+        st.markdown("### Raw Data")
         st.dataframe(filtered.reset_index(drop=True))
 
 # Footer
 st.markdown("---")
 st.caption("Najwa Mahmood | Bachelor of Computer Science")
-
-# Small CSS tweak
-st.markdown(
-    """
-    <style>
-html, body, .stApp {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.stApp {
-    background: linear-gradient(135deg, #f6e6f7 0%, #e2f0ff 50%, #f9f5ff 100%) !important;
-}
-
-header[data-testid="stHeader"] {
-    background-color: rgba(0,0,0,0) !important;
-    height: 0rem !important;
-}
-
-[data-testid="stSidebar"] {
-    background: #faf4ff !important;
-    border-right: 1px solid #e6d9f7;
-}
-
-.stApp .css-1d391kg {padding-top: 0rem !important;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
