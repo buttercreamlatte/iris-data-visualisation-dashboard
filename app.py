@@ -95,8 +95,8 @@ st.write("Interactively explore the Iris dataset with multiple visualisations an
 
 m1, m2, m3 = st.columns(3)
 m1.metric("Filtered Rows", len(filtered))
-m2.metric("Average Sepal Length", f"{filtered.sepal_length.mean():.2f}")
-m3.metric("Average Petal Length", f"{filtered.petal_length.mean():.2f}")
+m2.metric("Average Sepal Length", f"{filtered.sepal_length.mean():.2f} cm")
+m3.metric("Average Petal Length", f"{filtered.petal_length.mean():.2f} cm")
 
 st.markdown("---")
 
